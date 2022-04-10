@@ -91,7 +91,7 @@ def resize_imagen(imagen, width, height):
 
 def albaranes(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight):
     twidth -= .5
-    theight -= img_pag_alto     # para que no haga saltos de página
+    theight -= img_pag_alto / 2 if platform.system() == 'Windows' else img_pag_alto  # para que no haga saltos de página
     table = document.add_table(rows=img_pag_alto, cols=img_pag_ancho)
     table.allow_autofit = False
     table.style = None
