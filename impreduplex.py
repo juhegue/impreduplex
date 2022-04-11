@@ -15,6 +15,7 @@ from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 if platform.system() == 'Windows':
     import win32api
+    import win32print
     import win32com.client
     import win32event
     import win32process
@@ -34,7 +35,22 @@ ASzInJ07dxKlyd3dfRB5YdSAYWEA44Blpt+/f1PHBQDWcw8IAHFJDwAAAABJRU5ErkJggg==
 img_relleno = base64.b64decode(img_relleno.replace('\n', ''))
 
 
-def win_imprime(docu, impresora):
+def win_duplex(nom_imp, duplex=3):
+    print(f'Duplex({duplex}):{nom_imp}')
+    printdefaults = {'DesiredAccess': win32print.PRINTER_ACCESS_USE}
+    handle = win32print.OpenPrinter(nom_imp, printdefaults)
+    level = 2
+    attributes = win32print.GetPrinter(handle, level)
+    antes = attributes['pDevMode'].Duplex
+    attributes['pDevMode'].Duplex = duplex  # 1=no flip, 2=flip up, 3=flip over
+    try:
+        win32print.SetPrinter(handle, level, attributes, 0)
+    except:
+        pass
+    return antes
+
+
+def win_imprime(docu, impresora, duplex):
     if impresora.lower().endswith('pdf'):
         wdFormatPDF = 17
         word = win32com.client.gencache.EnsureDispatch('Word.Application')
@@ -44,6 +60,7 @@ def win_imprime(docu, impresora):
         w.Close()
         word.Quit()
     else:
+        duplex_ant = None
         if impresora == 'ver':
             procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
                                       fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
@@ -51,12 +68,19 @@ def win_imprime(docu, impresora):
                                       lpFile=docu,
                                       )
         elif impresora == 'defecto':
+            if duplex:
+                impresora = win32print.GetDefaultPrinter()
+                duplex_ant = win_duplex(impresora)
+
             procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
                                       fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
                                       lpVerb='printto',
                                       lpFile=docu,
                                       )
         else:
+            if duplex:
+                duplex_ant = win_duplex(impresora)
+
             procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
                                       fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
                                       lpVerb='printto',
@@ -66,6 +90,8 @@ def win_imprime(docu, impresora):
         procHandle = procInfo['hProcess']
         obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
         rc = win32process.GetExitCodeProcess(procHandle)
+        if duplex_ant:
+            win_duplex(impresora, duplex_ant)
 
 
 # def win_imprime(docu, impresora):
@@ -195,8 +221,9 @@ def main():
     doc_destino = args[2]
     img_pag_ancho = int(args[3])
     img_pag_alto = int(args[4])
-    # ver=Visualiza y para windows: defecto=Impresora defecto o el nombre impresora
+    # ver=Visualiza y para windows: defecto=Impresora defecto, nombre impresora o path+fich.pdf
     impresora = args[5] if len(args) > 5 else None
+    duplex = True if len(args) > 6 else False
 
     facturas_img = list()
     imagenes = convert_from_path(file_factu)
@@ -225,7 +252,7 @@ def main():
         if platform.system() == 'Darwin':       # mac
             subprocess.call(('open', doc_destino))
         elif platform.system() == 'Windows':
-            win_imprime(doc_destino, impresora)
+            win_imprime(doc_destino, impresora, duplex)
         else:                                   # linux
             subprocess.call(('xdg-open', doc_destino))
 
