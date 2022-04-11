@@ -16,11 +16,11 @@ from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 if platform.system() == 'Windows':
     import win32api
     import win32com.client
-    # import win32event
-    # import win32process
-    # import win32con
-    # from win32com.shell.shell import ShellExecuteEx
-    # from win32com.shell import shellcon
+    import win32event
+    import win32process
+    import win32con
+    from win32com.shell.shell import ShellExecuteEx
+    from win32com.shell import shellcon
 
 __version__ = '0.0.1'
 appName = 'impreduplex'
@@ -34,16 +34,16 @@ ASzInJ07dxKlyd3dfRB5YdSAYWEA44Blpt+/f1PHBQDWcw8IAHFJDwAAAABJRU5ErkJggg==
 img_relleno = base64.b64decode(img_relleno.replace('\n', ''))
 
 
-# def win_imprime_espera(docu, impresora):
-#     procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-#                               fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-#                               lpVerb='printto',
-#                               lpFile=docu,
-#                               lpParameters='"%s"' % impresora
-#                               )
-#     procHandle = procInfo['hProcess']
-#     obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
-#     rc = win32process.GetExitCodeProcess(procHandle)
+def win_imprime_espera(docu, impresora):
+    procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                              fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                              lpVerb='printto',
+                              lpFile=docu,
+                              lpParameters='"%s"' % impresora
+                              )
+    procHandle = procInfo['hProcess']
+    obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
+    rc = win32process.GetExitCodeProcess(procHandle)
 
 
 def win_imprime(docu, impresora):
@@ -208,8 +208,8 @@ def main():
             elif impresora == 'defecto':
                 os.startfile(doc_destino, 'print')
             elif impresora:
-                # win_imprime_ex(doc_destino, impresora)
-                win_imprime(doc_destino, impresora)
+                win_imprime_espera(doc_destino, impresora)
+                # win_imprime(doc_destino, impresora)
         else:                                   # linux
             subprocess.call(('xdg-open', doc_destino))
 
