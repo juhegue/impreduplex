@@ -34,27 +34,49 @@ ASzInJ07dxKlyd3dfRB5YdSAYWEA44Blpt+/f1PHBQDWcw8IAHFJDwAAAABJRU5ErkJggg==
 img_relleno = base64.b64decode(img_relleno.replace('\n', ''))
 
 
-def win_imprime_espera(docu, impresora):
-    procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                              fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                              lpVerb='printto',
-                              lpFile=docu,
-                              lpParameters='"%s"' % impresora
-                              )
-    procHandle = procInfo['hProcess']
-    obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
-    rc = win32process.GetExitCodeProcess(procHandle)
-
-
 def win_imprime(docu, impresora):
-    win32api.ShellExecute(
-        0,
-        'printto',
-        docu,
-        '"%s"' % impresora,
-        '.',
-        0
-    )
+    if impresora.lower().endswith('pdf'):
+        wdFormatPDF = 17
+        word = win32com.client.gencache.EnsureDispatch('Word.Application')
+        word.Visible = False
+        w = word.Documents.Open(docu)
+        w.SaveAs(impresora, FileFormat=wdFormatPDF)
+        w.Close()
+        word.Quit()
+    else:
+        if impresora == 'ver':
+            procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                                      fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                      lpVerb='open',
+                                      lpFile=docu,
+                                      )
+        elif impresora == 'defecto':
+            procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                                      fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                      lpVerb='printto',
+                                      lpFile=docu,
+                                      )
+        else:
+            procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                                      fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                      lpVerb='printto',
+                                      lpFile=docu,
+                                      lpParameters='"%s"' % impresora
+                                      )
+        procHandle = procInfo['hProcess']
+        obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
+        rc = win32process.GetExitCodeProcess(procHandle)
+
+
+# def win_imprime(docu, impresora):
+#     win32api.ShellExecute(
+#         0,
+#         'printto',
+#         docu,
+#         '"%s"' % impresora,
+#         '.',
+#         0
+#     )
 
 
 def get_paginas(documento):
@@ -203,13 +225,7 @@ def main():
         if platform.system() == 'Darwin':       # mac
             subprocess.call(('open', doc_destino))
         elif platform.system() == 'Windows':
-            if impresora == 'ver':
-                os.startfile(doc_destino)
-            elif impresora == 'defecto':
-                os.startfile(doc_destino, 'print')
-            elif impresora:
-                win_imprime_espera(doc_destino, impresora)
-                # win_imprime(doc_destino, impresora)
+            win_imprime(doc_destino, impresora)
         else:                                   # linux
             subprocess.call(('xdg-open', doc_destino))
 
