@@ -53,8 +53,9 @@ def win_duplex(nom_imp, duplex=3):
 def win_imprime(docu, impresora, duplex):
     if impresora.lower().endswith('pdf'):
         wdFormatPDF = 17
-        word = win32com.client.gencache.EnsureDispatch('Word.Application')
-        word.Visible = False
+        # word = win32com.client.gencache.EnsureDispatch('Word.Application')
+        # word.Visible = False
+        word = win32com.client.Dispatch('Word.Application')
         w = word.Documents.Open(docu)
         w.SaveAs(impresora, FileFormat=wdFormatPDF)
         w.Close()
