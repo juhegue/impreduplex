@@ -208,9 +208,10 @@ def crea_docx(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_a
             document.save(doc_destino)
             paginas = get_paginas(doc_destino)
             print(f'Página añadida, total: {paginas}')
-    elif paginas % 2 != 0:
-        document.add_page_break()
-        # document.add_paragraph('.')
+    else:
+        if paginas % 2 != 0:
+            document.add_page_break()
+            # document.add_paragraph('.')
         document.save(doc_destino)
 
 
@@ -238,7 +239,7 @@ def main():
         facturas_img.append(imagefile)
 
     albaranes_img = list()
-    for albaran in glob.glob(path_alba):
+    for albaran in sorted(glob.glob(path_alba)):
         with open(albaran, 'rb') as f:
             data = f.read()
 
