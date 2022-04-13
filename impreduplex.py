@@ -47,15 +47,18 @@ def win_duplex(nom_imp, duplex=3):
         win32print.SetPrinter(handle, level, attributes, 0)
     except:
         pass
+    # lista todos los atributos
+    # for n in dir(attributes['pDevMode']):
+    #     print("%s\t%s" % (n, getattr(attributes['pDevMode'],n)))
     return antes
 
 
 def win_imprime(docu, impresora, duplex):
     if impresora.lower().endswith('pdf'):
         wdFormatPDF = 17
-        # word = win32com.client.gencache.EnsureDispatch('Word.Application')
+        # word = win32com.client.Dispatch('Word.Application')
+        word = win32com.client.gencache.EnsureDispatch('Word.Application')
         # word.Visible = False
-        word = win32com.client.Dispatch('Word.Application')
         w = word.Documents.Open(docu)
         w.SaveAs(impresora, FileFormat=wdFormatPDF)
         w.Close()
@@ -113,8 +116,9 @@ def get_paginas(documento):
         win32com.client.gencache.is_readonly = False
         win32com.client.gencache.Rebuild()  # create gen_py folder if needed
 
+    # word = win32com.client.Dispatch('Word.Application')
     word = win32com.client.gencache.EnsureDispatch('Word.Application')
-    word.Visible = False
+    # word.Visible = False
     w = word.Documents.Open(documento)
     w.Repaginate()
     paginas = w.ComputeStatistics(2)
