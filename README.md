@@ -13,5 +13,6 @@ Parámetros:
     * ver = muestra el documento
     * defecto = lanza el documento por la impresora por defecto (solo windows)
     * nombre impresora = lanza el documento por esa impresora (solo windows)
+    * path + nombre.pdf = crea el docx e imprime este por el word creando el pdf (solo windows)
 7. Activación de modo Duplex de la impresora (opcional, solo windows)
 

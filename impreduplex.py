@@ -54,38 +54,48 @@ def win_duplex(nom_imp, duplex=3):
 
 
 def win_imprime(docu, impresora, duplex):
-    duplex_ant = None
-    if impresora == 'ver':
-        procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                                  fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                  lpVerb='open',
-                                  lpFile=docu,
-                                  )
-    elif impresora == 'defecto':
-        if duplex:
-            impresora = win32print.GetDefaultPrinter()
-            duplex_ant = win_duplex(impresora)
-
-        procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                                  fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                  lpVerb='printto',
-                                  lpFile=docu,
-                                  )
+    if impresora.lower().endswith('.pdf'):
+        wdFormatPDF = 17
+        # word = win32com.client.Dispatch('Word.Application')
+        word = win32com.client.gencache.EnsureDispatch('Word.Application')
+        # word.Visible = False
+        w = word.Documents.Open(docu)
+        w.SaveAs(impresora, FileFormat=wdFormatPDF)
+        w.Close()
+        word.Quit()
     else:
-        if duplex:
-            duplex_ant = win_duplex(impresora)
+        duplex_ant = None
+        if impresora == 'ver':
+            procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                                      fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                      lpVerb='open',
+                                      lpFile=docu,
+                                      )
+        elif impresora == 'defecto':
+            if duplex:
+                impresora = win32print.GetDefaultPrinter()
+                duplex_ant = win_duplex(impresora)
 
-        procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                                  fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                  lpVerb='printto',
-                                  lpFile=docu,
-                                  lpParameters='"%s"' % impresora
-                                  )
-    procHandle = procInfo['hProcess']
-    obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
-    rc = win32process.GetExitCodeProcess(procHandle)
-    if duplex_ant:
-        win_duplex(impresora, duplex_ant)
+            procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                                      fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                      lpVerb='printto',
+                                      lpFile=docu,
+                                      )
+        else:
+            if duplex:
+                duplex_ant = win_duplex(impresora)
+
+            procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                                      fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                      lpVerb='printto',
+                                      lpFile=docu,
+                                      lpParameters='"%s"' % impresora
+                                      )
+        procHandle = procInfo['hProcess']
+        obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
+        rc = win32process.GetExitCodeProcess(procHandle)
+        if duplex_ant:
+            win_duplex(impresora, duplex_ant)
 
 
 def win_get_paginas(documento):
