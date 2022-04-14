@@ -128,7 +128,7 @@ def escala_imagen(imagen, width, height):
     except:
         pass
 
-    return int(width), int(height)
+    return width, height
 
 
 class MiFPDF(FPDF):
