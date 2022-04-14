@@ -26,7 +26,8 @@ if platform.system() == 'Windows':
 
 __version__ = '0.0.1'
 appName = 'impreduplex'
-
+author = 'juhegue'
+date = 'jue 14 abr 2022'
 
 img_relleno = """
 iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAACXBI
@@ -156,6 +157,8 @@ def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_al
     pdf = MiFPDF()
     pdf.set_margins(0, 0, 0)
     pdf.alias_nb_pages()
+    pdf.set_author(author)
+    pdf.set_creator(appName)
 
     albaran = 0
     for factura in facturas_img:
@@ -174,7 +177,7 @@ def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_al
     pdf.output(doc_destino)
 
 
-def albaranes(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight):
+def albaranes_docx(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight):
     twidth -= .5
     theight -= img_pag_alto / 2 if platform.system() == 'Windows' else img_pag_alto  # para que no haga saltos de página
     table = document.add_table(rows=img_pag_alto, cols=img_pag_ancho)
@@ -221,11 +224,11 @@ def crea_docx(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_a
         paginas += 1
         document.add_picture(factura, width=Cm(twidth), height=Cm(theight))
         if albaran < len(albaranes_img):
-            albaran = albaranes(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight)
+            albaran = albaranes_docx(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight)
             paginas += 1
 
     while albaran < len(albaranes_img):
-        albaran = albaranes(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight)
+        albaran = albaranes_docx(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight)
         paginas += 1
 
     # Las páginas deben ser siempre pares
