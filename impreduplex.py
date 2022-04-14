@@ -1,22 +1,18 @@
 # -*- coding: utf-8 -*-
 
 from io import BytesIO
-import sys
 import os
+import sys
 import glob
 import platform
 import subprocess
-import base64
+import tempfile
 from PIL import Image
 from pdf2image import convert_from_path
-from docx import Document
-from docx.shared import Cm
-from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from fpdf import FPDF
+
 if platform.system() == 'Windows':
-    import win32api
     import win32print
-    import win32com.client
     import win32event
     import win32process
     import win32con
@@ -25,14 +21,6 @@ if platform.system() == 'Windows':
 
 __version__ = '0.0.1'
 appName = 'impreduplex'
-
-
-img_relleno = """
-iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAACXBI
-WXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH3wYHFSo7+aaN1AAAADNJREFUOMtj/P//PwMlgImBQkCx
-ASzInJ07dxKlyd3dfRB5YdSAYWEA44Blpt+/f1PHBQDWcw8IAHFJDwAAAABJRU5ErkJggg==
-"""
-img_relleno = base64.b64decode(img_relleno.replace('\n', ''))
 
 
 def win_duplex(nom_imp, duplex=3):
@@ -47,87 +35,46 @@ def win_duplex(nom_imp, duplex=3):
         win32print.SetPrinter(handle, level, attributes, 0)
     except:
         pass
-    # lista todos los atributos
-    # for n in dir(attributes['pDevMode']):
-    #     print("%s\t%s" % (n, getattr(attributes['pDevMode'],n)))
+
     return antes
 
 
 def win_imprime(docu, impresora, duplex):
-    if impresora.lower().endswith('pdf'):
-        wdFormatPDF = 17
-        # word = win32com.client.Dispatch('Word.Application')
-        word = win32com.client.gencache.EnsureDispatch('Word.Application')
-        # word.Visible = False
-        w = word.Documents.Open(docu)
-        w.SaveAs(impresora, FileFormat=wdFormatPDF)
-        w.Close()
-        word.Quit()
+    duplex_ant = None
+    if impresora == 'ver':
+        procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                                  fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                  lpVerb='open',
+                                  lpFile=docu,
+                                  )
+    elif impresora == 'defecto':
+        if duplex:
+            impresora = win32print.GetDefaultPrinter()
+            duplex_ant = win_duplex(impresora)
+
+        procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                                  fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                  lpVerb='printto',
+                                  lpFile=docu,
+                                  )
     else:
-        duplex_ant = None
-        if impresora == 'ver':
-            procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                                      fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                      lpVerb='open',
-                                      lpFile=docu,
-                                      )
-        elif impresora == 'defecto':
-            if duplex:
-                impresora = win32print.GetDefaultPrinter()
-                duplex_ant = win_duplex(impresora)
+        if duplex:
+            duplex_ant = win_duplex(impresora)
 
-            procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                                      fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                      lpVerb='printto',
-                                      lpFile=docu,
-                                      )
-        else:
-            if duplex:
-                duplex_ant = win_duplex(impresora)
-
-            procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                                      fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                      lpVerb='printto',
-                                      lpFile=docu,
-                                      lpParameters='"%s"' % impresora
-                                      )
-        procHandle = procInfo['hProcess']
-        obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
-        rc = win32process.GetExitCodeProcess(procHandle)
-        if duplex_ant:
-            win_duplex(impresora, duplex_ant)
+        procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
+                                  fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
+                                  lpVerb='printto',
+                                  lpFile=docu,
+                                  lpParameters='"%s"' % impresora
+                                  )
+    procHandle = procInfo['hProcess']
+    obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
+    rc = win32process.GetExitCodeProcess(procHandle)
+    if duplex_ant:
+        win_duplex(impresora, duplex_ant)
 
 
-# def win_imprime(docu, impresora):
-#     win32api.ShellExecute(
-#         0,
-#         'printto',
-#         docu,
-#         '"%s"' % impresora,
-#         '.',
-#         0
-#     )
-
-
-def get_paginas(documento):
-    # TODO:: Para corregir el error
-    # win32com\client\CLSIDToClass.pyc: KeyError: '{00020970-0000-0000-C000-000000000046}'
-    if win32com.client.gencache.is_readonly:
-        win32com.client.gencache.is_readonly = False
-        win32com.client.gencache.Rebuild()  # create gen_py folder if needed
-
-    # word = win32com.client.Dispatch('Word.Application')
-    word = win32com.client.gencache.EnsureDispatch('Word.Application')
-    # word.Visible = False
-    w = word.Documents.Open(documento)
-    w.Repaginate()
-    paginas = w.ComputeStatistics(2)
-    w.Close()
-    word.Quit()
-    return paginas
-
-
-def resize_imagen(imagen, width, height):
+def escala_imagen(imagen, width, height):
     try:
         im = Image.open(imagen)
         w, h = im.size
@@ -139,80 +86,61 @@ def resize_imagen(imagen, width, height):
     except:
         pass
 
-    return width, height
+    return int(width), int(height)
 
 
-def albaranes(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight):
-    twidth -= .5
-    theight -= img_pag_alto / 2 if platform.system() == 'Windows' else img_pag_alto  # para que no haga saltos de página
-    table = document.add_table(rows=img_pag_alto, cols=img_pag_ancho)
-    table.allow_autofit = False
-    table.style = None
+class MiFPDF(FPDF):
+
+    def image(self, stream, x, y, w, h):
+        tmp_file = os.path.join(tempfile.gettempdir(), next(tempfile._get_candidate_names())) + '.png'
+        Image.open(stream).save(tmp_file)
+        super().image(tmp_file, x=x, y=y, w=w, h=h, type='png', link='')
+        os.remove(tmp_file)
+
+    def footer(self):
+        self.set_y(-6)
+        self.set_font('Arial', 'I', 6)
+        self.cell(0, 10, f'Página {self.page_no()}' + '/{nb}', 0, 0, 'C')
+
+
+def albaranes(pdf, albaranes_img, albaran, img_pag_ancho, img_pag_alto):
+    pdf.add_page()
+    posy = 0
     for alto in range(0, img_pag_alto):
+        posx = 0
         for ancho in range(0, img_pag_ancho):
-            cell = table.rows[alto].cells[ancho]
-            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
-            paragraph = cell.paragraphs[0]
-            paragraph.style = None
-            paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-            run = paragraph.add_run()
             if albaran < len(albaranes_img):
-                width = twidth / img_pag_ancho
-                height = theight / img_pag_alto
-                imagen = albaranes_img[albaran]
-                w, h = resize_imagen(imagen, width, height)
-                run.add_picture(BytesIO(img_relleno), width=Cm(width), height=Cm((height-h)/2))
-                run.add_picture(imagen, width=Cm(w), height=Cm(h))
-                run.add_picture(BytesIO(img_relleno), width=Cm(width), height=Cm((height-h))/2)
-                albaran = albaran + 1
+                img = albaranes_img[albaran]
+                w, h = escala_imagen(img, pdf.fw / img_pag_ancho, pdf.fh / img_pag_alto)
+                inc_y = (pdf.fh / img_pag_alto - h) / 2
+                inc_x = (pdf.fw / img_pag_ancho - w) / 2
+                pdf.image(img, posx + inc_x, posy + inc_y, w, h)
+                posx += pdf.fw / img_pag_ancho
+                albaran += 1
+        posy += pdf.fh / img_pag_alto
     return albaran
 
 
-def crea_docx(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_alto):
-    document = Document('impreduplex.docx')
-    width = document.sections[0].page_width.cm
-    height = document.sections[0].page_height.cm
-    top = document.sections[0].top_margin.cm
-    bottom = document.sections[0].bottom_margin.cm
-    left = document.sections[0].left_margin.cm
-    right = document.sections[0].right_margin.cm
-    twidth = width - left - right
-    theight = height - top - bottom
+def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_alto):
+    pdf = MiFPDF()
+    pdf.set_margins(0, 0, 0)
+    pdf.alias_nb_pages()
 
-    for paragraph in document.paragraphs:
-        p = paragraph._element
-        p.getparent().remove(p)
-        p._p = p._element = None
-
-    paginas = albaran = 0
+    albaran = 0
     for factura in facturas_img:
-        paginas += 1
-        document.add_picture(factura, width=Cm(twidth), height=Cm(theight))
+        pdf.add_page()
+        pdf.image(factura, 0, 0, pdf.fw, pdf.fh)
         if albaran < len(albaranes_img):
-            albaran = albaranes(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight)
-            paginas += 1
+            albaran = albaranes(pdf, albaranes_img, albaran, img_pag_ancho, img_pag_alto)
 
     while albaran < len(albaranes_img):
-        albaran = albaranes(document, albaranes_img, albaran, img_pag_ancho, img_pag_alto, twidth, theight)
-        paginas += 1
+        albaran = albaranes(pdf, albaranes_img, albaran, img_pag_ancho, img_pag_alto)
 
-    # Las páginas deben ser siempre pares
-    if platform.system() == 'Windows':
-        # en windows se cuentan las páginas con el Word
-        document.save(doc_destino)
-        paginas = get_paginas(doc_destino)
-        print(f'Páginas creadas: {paginas}')
-        if paginas % 2 != 0:
-            document = Document(doc_destino)
-            document.add_page_break()
-            document.save(doc_destino)
-            paginas = get_paginas(doc_destino)
-            print(f'Página añadida, total: {paginas}')
-    else:
-        if paginas % 2 != 0:
-            document.add_page_break()
-            # document.add_paragraph('.')
-        document.save(doc_destino)
+    # siempre pares
+    if pdf.page_no() % 2 != 0:
+        pdf.add_page()
+
+    pdf.output(doc_destino)
 
 
 def main():
@@ -223,11 +151,10 @@ def main():
 
     file_factu = args[0]
     path_alba = args[1]
-    # TODO:: para windows path+fichero ya que se calculan las páginas
     doc_destino = args[2]
     img_pag_ancho = int(args[3])
     img_pag_alto = int(args[4])
-    # ver=Visualiza y para windows: defecto=Impresora defecto, nombre impresora o path+fich.pdf
+    # ver=Visualiza y para windows: defecto=Impresora defecto o nombre impresora
     impresora = args[5] if len(args) > 5 else None
     duplex = True if len(args) > 6 else False
 
@@ -252,7 +179,7 @@ def main():
         else:
             albaranes_img.append(BytesIO(data))
 
-    crea_docx(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_alto)
+    crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_alto)
 
     if impresora:
         if platform.system() == 'Darwin':       # mac

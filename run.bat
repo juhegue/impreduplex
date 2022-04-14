@@ -1,2 +1,2 @@
 
-dist\impreduplex.exe imagenes\Factura.pdf imagenes\D*.* C:\Python\duplex\doc.docx 2 4 ver
+dist\impreduplex.exe imagenes\Factura.pdf imagenes\D*.* doc.pdf 2 4 ver
