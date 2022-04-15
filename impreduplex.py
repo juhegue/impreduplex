@@ -88,6 +88,14 @@ def escala_imagen(imagen, width, height):
     return entero(width), entero(height)
 
 
+def paste_imagen(pagina, imagen, posx, posy, width, height):
+    w, h = escala_imagen(imagen, width, height)
+    inc_y = (height - h) / 2
+    inc_x = (width - w) / 2
+    img = Image.open(imagen).resize((w, h))
+    pagina.paste(img, box=(entero(posx + inc_x), entero(posy + inc_y)))
+
+
 def albaranes_pdf(pagina, width, height, albaranes_img, albaran, img_pag_ancho, img_pag_alto):
     posy = 0
     for alto in range(0, img_pag_alto):
@@ -95,11 +103,7 @@ def albaranes_pdf(pagina, width, height, albaranes_img, albaran, img_pag_ancho, 
         for ancho in range(0, img_pag_ancho):
             if albaran < len(albaranes_img):
                 img = albaranes_img[albaran]
-                w, h = escala_imagen(img, width / img_pag_ancho, height / img_pag_alto)
-                inc_y = (height / img_pag_alto - h) / 2
-                inc_x = (width / img_pag_ancho - w) / 2
-                img = Image.open(img).resize((w, h))
-                pagina.paste(img, box=(entero(posx + inc_x), entero(posy + inc_y)))
+                paste_imagen(pagina, img, posx, posy, width / img_pag_ancho, height / img_pag_alto)
                 posx += width / img_pag_ancho
                 albaran += 1
         posy += height / img_pag_alto
@@ -118,8 +122,7 @@ def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_al
     albaran = 0
     for factura in facturas_img:
         pagina = Image.new('RGB', (width, height), 'white')
-        img = Image.open(factura).resize(escala_imagen(factura, width, height))
-        pagina.paste(img, box=(0, 0))
+        paste_imagen(pagina, factura, 0, 0, width, height)
         paginas.append(pagina)
         if albaran < len(albaranes_img):
             pagina = Image.new('RGB', (width, height), 'white')
