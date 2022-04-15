@@ -77,9 +77,8 @@ def entero(numero):
     return int(math.modf(numero)[1])
 
 
-def escala_imagen(imagen, width, height):
-    im = Image.open(imagen)
-    w, h = im.size
+def escala_imagen(image, width, height):
+    w, h = image.size
     w = height * w / h
     if w > width:
         height = height * width / w
@@ -89,11 +88,12 @@ def escala_imagen(imagen, width, height):
 
 
 def paste_imagen(pagina, imagen, posx, posy, width, height):
-    w, h = escala_imagen(imagen, width, height)
+    image = Image.open(imagen)
+    w, h = escala_imagen(image, width, height)
     inc_y = (height - h) / 2
     inc_x = (width - w) / 2
-    img = Image.open(imagen).resize((w, h))
-    pagina.paste(img, box=(entero(posx + inc_x), entero(posy + inc_y)))
+    image = image.convert('RGB').resize((w, h))
+    pagina.paste(image, box=(entero(posx + inc_x), entero(posy + inc_y)))
 
 
 def albaranes_pdf(pagina, width, height, albaranes_img, albaran, img_pag_ancho, img_pag_alto):
@@ -116,7 +116,7 @@ def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_al
     1 Pulgada es 25,4 mm
     A4 es 8,27 x 11,69 pulgadas.
     """
-    width, height = entero(8.27 * 300), entero(11.69 * 300)  # A4 con 300dpi
+    width, height = entero(8.27 * 200), entero(11.69 * 200)  # A4 con 200dpi
 
     paginas = list()
     albaran = 0
