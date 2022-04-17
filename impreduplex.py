@@ -74,26 +74,21 @@ def win_imprime(docu, impresora, duplex):
         win_duplex(impresora, duplex_ant)
 
 
-def escala_imagen(imagen, width, height):
-    try:
-        im = Image.open(imagen)
-        w, h = im.size
-        w = height * w / h
-        if w > width:
-            height = height * width / w
-        else:
-            width = w
-    except:
-        pass
-
+def escala_imagen(image, width, height):
+    w, h = image.size
+    w = height * w / h
+    if w > width:
+        height = height * width / w
+    else:
+        width = w
     return int(width), int(height)
 
 
 class MiFPDF(FPDF):
 
-    def image(self, stream, x, y, w, h):
+    def image(self, image, x, y, w, h):
         tmp_file = os.path.join(tempfile.gettempdir(), next(tempfile._get_candidate_names())) + '.png'
-        Image.open(stream).save(tmp_file)
+        image.save(tmp_file)
         super().image(tmp_file, x=x, y=y, w=w, h=h, type='png', link='')
         os.remove(tmp_file)
 
@@ -103,7 +98,18 @@ class MiFPDF(FPDF):
         self.cell(0, 10, f'Página {self.page_no()}' + '/{nb}', 0, 0, 'C')
 
 
+def paste_imagen(pdf, imagen, posx, posy, width, height):
+    image = Image.open(imagen)
+    w, h = escala_imagen(image, width, height)
+    inc_y = (height - h) / 2
+    inc_x = (width - w) / 2
+    image = image.convert('RGB')
+    pdf.image(image, posx + inc_x, posy + inc_y, w, h)
+
+
 def albaranes(pdf, albaranes_img, albaran, img_pag_ancho, img_pag_alto):
+    w, h = (pdf.fh, pdf.fw) if pdf.def_orientation == 'L' else (pdf.fw, pdf.fh)
+
     pdf.add_page()
     posy = 0
     for alto in range(0, img_pag_alto):
@@ -111,25 +117,25 @@ def albaranes(pdf, albaranes_img, albaran, img_pag_ancho, img_pag_alto):
         for ancho in range(0, img_pag_ancho):
             if albaran < len(albaranes_img):
                 img = albaranes_img[albaran]
-                w, h = escala_imagen(img, pdf.fw / img_pag_ancho, pdf.fh / img_pag_alto)
-                inc_y = (pdf.fh / img_pag_alto - h) / 2
-                inc_x = (pdf.fw / img_pag_ancho - w) / 2
-                pdf.image(img, posx + inc_x, posy + inc_y, w, h)
-                posx += pdf.fw / img_pag_ancho
+                paste_imagen(pdf, img, posx, posy, w / img_pag_ancho, h / img_pag_alto)
+                posx += w / img_pag_ancho
                 albaran += 1
-        posy += pdf.fh / img_pag_alto
+        posy += h / img_pag_alto
     return albaran
 
 
 def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_alto):
-    pdf = MiFPDF()
+    w, h = Image.open(facturas_img[0]).size
+    orientation = 'L' if w > h else 'P'
+    pdf = MiFPDF(orientation=orientation)
     pdf.set_margins(0, 0, 0)
     pdf.alias_nb_pages()
 
     albaran = 0
     for factura in facturas_img:
         pdf.add_page()
-        pdf.image(factura, 0, 0, pdf.fw, pdf.fh)
+        w, h = (pdf.fh, pdf.fw) if pdf.def_orientation == 'L' else (pdf.fw, pdf.fh)
+        paste_imagen(pdf, factura, 0, 0, w, h)
         if albaran < len(albaranes_img):
             albaran = albaranes(pdf, albaranes_img, albaran, img_pag_ancho, img_pag_alto)
 
