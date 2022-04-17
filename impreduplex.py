@@ -116,7 +116,11 @@ def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_al
     1 Pulgada es 25,4 mm
     A4 es 8,27 x 11,69 pulgadas.
     """
-    width, height = entero(8.27 * 200), entero(11.69 * 200)  # A4 con 200dpi
+    w, h = Image.open(facturas_img[0]).size
+    if w > h:
+        height, width = entero(8.27 * 200), entero(11.69 * 200)  # A4 200dpi Portrait
+    else:
+        width, height = entero(8.27 * 200), entero(11.69 * 200)  # A4 200dpi Landscape
 
     paginas = list()
     albaran = 0
