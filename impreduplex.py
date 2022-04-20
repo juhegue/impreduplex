@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os
 from io import BytesIO
 import math
 import sys
@@ -9,6 +10,9 @@ import subprocess
 from PIL import Image
 from pdf2image import convert_from_path
 if platform.system() == 'Windows':
+    import psutil
+    import time
+    import threading
     import win32print
     import win32event
     import win32process
@@ -20,6 +24,34 @@ __version__ = '0.0.1'
 appName = 'impreduplex'
 author = 'juhegue'
 date = 'jue 14 abr 2022'
+
+
+def check_process_exist_by_name(name):
+    for proc in psutil.process_iter():
+        if proc.name() == name:
+            return True
+    return False
+
+
+def kill_by_process_name(name):
+    for proc in psutil.process_iter():
+        if proc.name() == name:
+            print(f'Matando proceso: {name}, ', end='')
+            os.system(f'taskkill /f /im {name}')
+            return True
+    return False
+
+
+def kill_acrobat(tiempo_acrobat):
+    time.sleep(tiempo_acrobat)
+    proceso = 'Acrobat.exe'
+    if kill_by_process_name(proceso):
+        if check_process_exist_by_name(proceso):
+            print('continua activo.')
+        else:
+            print('finalizado.')
+    else:
+        print(f'Proceso {proceso} no encontrado.')
 
 
 def win_duplex(nom_imp, duplex=3):
@@ -38,7 +70,7 @@ def win_duplex(nom_imp, duplex=3):
     return antes
 
 
-def win_imprime(docu, impresora, duplex):
+def win_imprime(docu, impresora, tiempo_acrobat, duplex):
     duplex_ant = None
     if impresora == 'ver':
         procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
@@ -66,9 +98,15 @@ def win_imprime(docu, impresora, duplex):
                                   lpFile=docu,
                                   lpParameters='"%s"' % impresora
                                   )
+    if tiempo_acrobat:
+        t = threading.Thread(target=kill_acrobat, args=(tiempo_acrobat,))
+        t.daemon = True
+        t.start()
+
     procHandle = procInfo['hProcess']
     obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
     rc = win32process.GetExitCodeProcess(procHandle)
+
     if duplex_ant:
         win_duplex(impresora, duplex_ant)
 
@@ -159,7 +197,8 @@ def main():
     img_pag_alto = int(args[4])
     # ver=Visualiza y para windows: defecto=Impresora defecto o nombre impresora
     impresora = args[5] if len(args) > 5 else None
-    duplex = True if len(args) > 6 else False
+    tiempo_acrobat = int(args[6]) if len(args) > 6 else 0
+    duplex = True if len(args) > 7 else False
 
     facturas_img = list()
     imagenes = convert_from_path(file_factu)
@@ -188,7 +227,7 @@ def main():
         if platform.system() == 'Darwin':       # mac
             subprocess.call(('open', doc_destino))
         elif platform.system() == 'Windows':
-            win_imprime(doc_destino, impresora, duplex)
+            win_imprime(doc_destino, impresora, tiempo_acrobat, duplex)
         else:                                   # linux
             subprocess.call(('xdg-open', doc_destino))
 
