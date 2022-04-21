@@ -31,8 +31,7 @@ GHOSTSCRIPT_PATH = os.path.join(path, 'gswin64c.exe')
 GSPRINT_PATH = os.path.join(path, 'gsprint.exe')
 
 
-def win_duplex(nom_imp, duplex=3):
-    print(f'Duplex({duplex}):{nom_imp}')
+def win_duplex(nom_imp, duplex):
     printdefaults = {'DesiredAccess': win32print.PRINTER_ACCESS_USE}
     handle = win32print.OpenPrinter(nom_imp, printdefaults)
     level = 2
@@ -59,10 +58,16 @@ def win_imprime(docu, impresora, duplex):
         if impresora == 'defecto':
             impresora = win32print.GetDefaultPrinter()
 
+        print(f'Impresora: {impresora}')
+
         if duplex:
-            duplex_ant = win_duplex(impresora)
+            print('Asignado duplex: 3')
+            duplex_ant = win_duplex(impresora, 3)
 
         param = f'-ghostscript "{GHOSTSCRIPT_PATH}" -dPDFFitPage -dFitPage -{FORMATO} -color -q -r{DPI} -printer "{impresora}" "{docu}"'
+
+        print(f'{GSPRINT_PATH} {param}')
+
         procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
                                   fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
                                   lpVerb='open',
@@ -75,6 +80,7 @@ def win_imprime(docu, impresora, duplex):
     rc = win32process.GetExitCodeProcess(procHandle)
 
     if duplex_ant:
+        print(f'Restaurando duplex: {duplex_ant}')
         win_duplex(impresora, duplex_ant)
 
 
@@ -158,7 +164,7 @@ def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_al
 def main():
     args = sys.argv[1:]
     if len(args) < 5:
-        print('Error.')
+        print('Error parámetros.')
         sys.exit(-1)
 
     file_factu = args[0]
