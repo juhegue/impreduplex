@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import os
 from io import BytesIO
 import math
 import sys
@@ -10,9 +9,6 @@ import subprocess
 from PIL import Image
 from pdf2image import convert_from_path
 if platform.system() == 'Windows':
-    import psutil
-    import time
-    import threading
     import win32print
     import win32event
     import win32process
@@ -25,33 +21,10 @@ appName = 'impreduplex'
 author = 'juhegue'
 date = 'jue 14 abr 2022'
 
-
-def check_process_exist_by_name(name):
-    for proc in psutil.process_iter():
-        if proc.name() == name:
-            return True
-    return False
-
-
-def kill_by_process_name(name):
-    for proc in psutil.process_iter():
-        if proc.name() == name:
-            print(f'Matando proceso: {name}, ', end='')
-            os.system(f'taskkill /f /im {name}')
-            return True
-    return False
-
-
-def kill_acrobat(tiempo_acrobat):
-    time.sleep(tiempo_acrobat)
-    proceso = 'Acrobat.exe'
-    if kill_by_process_name(proceso):
-        if check_process_exist_by_name(proceso):
-            print('continua activo.')
-        else:
-            print('finalizado.')
-    else:
-        print(f'Proceso {proceso} no encontrado.')
+FORMATO = ''
+DPI = 200
+GHOSTSCRIPT_PATH = 'C:\\DOCUMENTOS\\impreduplex\\Library\\bin\\gswin64c.exe'
+GSPRINT_PATH = 'C:\\DOCUMENTOS\\impreduplex\\Library\\bin\\gsprint.exe'
 
 
 def win_duplex(nom_imp, duplex=3):
@@ -70,7 +43,7 @@ def win_duplex(nom_imp, duplex=3):
     return antes
 
 
-def win_imprime(docu, impresora, tiempo_acrobat, duplex):
+def win_imprime(docu, impresora, duplex):
     duplex_ant = None
     if impresora == 'ver':
         procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
@@ -78,30 +51,20 @@ def win_imprime(docu, impresora, tiempo_acrobat, duplex):
                                   lpVerb='open',
                                   lpFile=docu,
                                   )
-    elif impresora == 'defecto':
-        if duplex:
-            impresora = win32print.GetDefaultPrinter()
-            duplex_ant = win_duplex(impresora)
-
-        procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                                  fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                  lpVerb='printto',
-                                  lpFile=docu,
-                                  )
     else:
+        if impresora == 'defecto':
+            impresora = win32print.GetDefaultPrinter()
+
         if duplex:
             duplex_ant = win_duplex(impresora)
 
+        param = f'-ghostscript "{GHOSTSCRIPT_PATH}" -dPDFFitPage -dFitPage -{FORMATO} -color -q -r{DPI} -printer "{impresora}" "{docu}"'
         procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
                                   fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                  lpVerb='printto',
-                                  lpFile=docu,
-                                  lpParameters='"%s"' % impresora
+                                  lpVerb='open',
+                                  lpFile=GSPRINT_PATH,
+                                  lpParameters=param
                                   )
-    if tiempo_acrobat:
-        t = threading.Thread(target=kill_acrobat, args=(tiempo_acrobat,))
-        t.daemon = True
-        t.start()
 
     procHandle = procInfo['hProcess']
     obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
@@ -154,11 +117,15 @@ def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_al
     1 Pulgada es 25,4 mm
     A4 es 8,27 x 11,69 pulgadas.
     """
+    global FORMATO
+
     w, h = Image.open(facturas_img[0]).size
     if w > h:
-        height, width = entero(8.27 * 200), entero(11.69 * 200)  # A4 200dpi Portrait
+        height, width = entero(8.27 * DPI), entero(11.69 * DPI)  # A4 Landscape
+        FORMATO = 'landscape'
     else:
-        width, height = entero(8.27 * 200), entero(11.69 * 200)  # A4 200dpi Landscape
+        width, height = entero(8.27 * DPI), entero(11.69 * DPI)  # A4 Portrait
+        FORMATO = 'portrait'
 
     paginas = list()
     albaran = 0
@@ -197,7 +164,7 @@ def main():
     img_pag_alto = int(args[4])
     # ver=Visualiza y para windows: defecto=Impresora defecto o nombre impresora
     impresora = args[5] if len(args) > 5 else None
-    tiempo_acrobat = int(args[6]) if len(args) > 6 else 0
+    tiempo_acrobat = int(args[6]) if len(args) > 6 else 0   # NO SE USA
     duplex = True if len(args) > 7 else False
 
     facturas_img = list()
@@ -227,11 +194,10 @@ def main():
         if platform.system() == 'Darwin':       # mac
             subprocess.call(('open', doc_destino))
         elif platform.system() == 'Windows':
-            win_imprime(doc_destino, impresora, tiempo_acrobat, duplex)
+            win_imprime(doc_destino, impresora, duplex)
         else:                                   # linux
             subprocess.call(('xdg-open', doc_destino))
 
 
 if __name__ == '__main__':
     main()
-
