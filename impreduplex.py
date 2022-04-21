@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os
 from io import BytesIO
 import math
 import sys
@@ -21,10 +22,13 @@ appName = 'impreduplex'
 author = 'juhegue'
 date = 'jue 14 abr 2022'
 
+path = sys.executable if hasattr(sys, 'frozen') else sys.argv[0]
+path = os.path.split(path)[0]
+
 FORMATO = ''
 DPI = 200
-GHOSTSCRIPT_PATH = 'C:\\DOCUMENTOS\\impreduplex\\Library\\bin\\gswin64c.exe'
-GSPRINT_PATH = 'C:\\DOCUMENTOS\\impreduplex\\Library\\bin\\gsprint.exe'
+GHOSTSCRIPT_PATH = os.path.join(path, 'gswin64c.exe')
+GSPRINT_PATH = os.path.join(path, 'gsprint.exe')
 
 
 def win_duplex(nom_imp, duplex=3):
