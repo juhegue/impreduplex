@@ -11,11 +11,7 @@ from PIL import Image
 from pdf2image import convert_from_path
 if platform.system() == 'Windows':
     import win32print
-    import win32event
-    import win32process
     import win32con
-    from win32com.shell.shell import ShellExecuteEx
-    from win32com.shell import shellcon
 
 __version__ = '0.0.1'
 appName = 'impreduplex'
@@ -49,11 +45,7 @@ def win_duplex(nom_imp, duplex):
 def win_imprime(docu, impresora, duplex):
     duplex_ant = None
     if impresora == 'ver':
-        procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                                  fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                  lpVerb='open',
-                                  lpFile=docu,
-                                  )
+        arg = ['cmd', '/C', f'{docu}']
     else:
         if impresora == 'defecto':
             impresora = win32print.GetDefaultPrinter()
@@ -64,20 +56,25 @@ def win_imprime(docu, impresora, duplex):
             print('Asignado duplex: 3')
             duplex_ant = win_duplex(impresora, 3)
 
-        param = f'-ghostscript "{GHOSTSCRIPT_PATH}" -dPDFFitPage -dFitPage -{FORMATO} -color -q -r{DPI} -printer "{impresora}" "{docu}"'
+        arg = [
+            f'{GSPRINT_PATH}',
+            '-ghostscript',
+            f'{GHOSTSCRIPT_PATH}',
+            '-dPDFFitPage',
+            '-dFitPage',
+            f'-{FORMATO}',
+            '-color',
+            '-q',
+            f'-r{DPI}',
+            '-printer',
+            f'{impresora}',
+            f'{docu}'
+        ]
 
-        print(f'{GSPRINT_PATH} {param}')
-
-        procInfo = ShellExecuteEx(nShow=win32con.SW_HIDE,
-                                  fMask=shellcon.SEE_MASK_NOCLOSEPROCESS,
-                                  lpVerb='open',
-                                  lpFile=GSPRINT_PATH,
-                                  lpParameters=param
-                                  )
-
-    procHandle = procInfo['hProcess']
-    obj = win32event.WaitForSingleObject(procHandle, win32event.INFINITE)
-    rc = win32process.GetExitCodeProcess(procHandle)
+    info = subprocess.STARTUPINFO()
+    info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+    info.wShowWindow = win32con.SW_HIDE
+    subprocess.run(arg, startupinfo=info)
 
     if duplex_ant:
         print(f'Restaurando duplex: {duplex_ant}')
