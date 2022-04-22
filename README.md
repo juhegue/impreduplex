@@ -15,3 +15,5 @@ Parámetros:
     * nombre impresora = lanza el documento por esa impresora (solo windows)
 7. Activación de modo Duplex de la impresora (opcional, solo windows)
 
+### NOTA
+   Hay que tener instalado [poppler](https://pdf2image.readthedocs.io/en/latest/installation.html) 
