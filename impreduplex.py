@@ -1,30 +1,40 @@
 # -*- coding: utf-8 -*-
 
-import os
 from io import BytesIO
 import math
 import sys
 import glob
 import platform
 import subprocess
-from PIL import Image
+from PIL import Image, ImageWin
 from pdf2image import convert_from_path
 if platform.system() == 'Windows':
-    import win32print
     import win32con
+    import win32print
+    import win32ui
 
 __version__ = '0.0.1'
 appName = 'impreduplex'
 author = 'juhegue'
 date = 'jue 14 abr 2022'
 
-path = sys.executable if hasattr(sys, 'frozen') else sys.argv[0]
-path = os.path.split(path)[0]
-
 FORMATO = ''
 DPI = 200
-GHOSTSCRIPT_PATH = os.path.join(path, 'gswin64c.exe')
-GSPRINT_PATH = os.path.join(path, 'gsprint.exe')
+
+
+def win_orientation(nom_imp, orientation):
+    printdefaults = {'DesiredAccess': win32print.PRINTER_ACCESS_USE}
+    handle = win32print.OpenPrinter(nom_imp, printdefaults)
+    level = 2
+    attributes = win32print.GetPrinter(handle, level)
+    antes = attributes['pDevMode'].Orientation
+    attributes['pDevMode'].Orientation = orientation
+    try:
+        win32print.SetPrinter(handle, level, attributes, 0)
+    except:
+        pass
+    win32print.ClosePrinter(handle)
+    return antes
 
 
 def win_duplex(nom_imp, duplex):
@@ -38,47 +48,69 @@ def win_duplex(nom_imp, duplex):
         win32print.SetPrinter(handle, level, attributes, 0)
     except:
         pass
-
+    win32print.ClosePrinter(handle)
     return antes
 
 
-def win_imprime(docu, impresora, duplex):
-    duplex_ant = None
-    if impresora == 'ver':
-        arg = ['cmd', '/C', f'{docu}']
-    else:
-        if impresora == 'defecto':
-            impresora = win32print.GetDefaultPrinter()
+def win_imprime(paginas, impresora, duplex):
+    if impresora == 'defecto':
+        impresora = win32print.GetDefaultPrinter()
 
-        print(f'Impresora: {impresora}')
+    if duplex:
+        print(f'Asignado duplex: {duplex}')
+        duplex_ant = win_duplex(impresora, duplex)
 
-        if duplex:
-            print('Asignado duplex: 3')
-            duplex_ant = win_duplex(impresora, 3)
+    orientacion = 1 if FORMATO == 'portrait' else 2
+    orientacion = win_orientation(impresora, orientacion)
 
-        arg = [
-            f'{GSPRINT_PATH}',
-            '-ghostscript',
-            f'{GHOSTSCRIPT_PATH}',
-            '-dPDFFitPage',
-            '-dFitPage',
-            f'-{FORMATO}',
-            '-color',
-            '-q',
-            f'-r{DPI}',
-            '-printer',
-            f'{impresora}',
-            f'{docu}'
-        ]
+    print(f'Impresora ({FORMATO}): {impresora}')
+    hdc = win32ui.CreateDC()
+    hdc.CreatePrinterDC(impresora)
 
+    horzres = hdc.GetDeviceCaps(win32con.HORZRES)
+    vertres = hdc.GetDeviceCaps(win32con.VERTRES)
+    hdc.StartDoc('Resultado')
+    for n, img in enumerate(paginas):
+        print(f'Página: {n + 1}')
+        img_width, img_height = img.size
+
+        ratio = horzres / vertres
+        max_height = img_height
+        max_width = (int)(max_height * ratio)
+
+        # ajusta imagen al tamaño de la página
+        hdc.SetMapMode(win32con.MM_ISOTROPIC)
+        hdc.SetViewportExt((horzres, vertres))
+        hdc.SetWindowExt((max_width, max_height))
+
+        # desplazamiento para centrar
+        offset_x = (int)((max_width - img_width) / 2)
+        offset_y = (int)((max_height - img_height) / 2)
+        hdc.SetWindowOrg((-offset_x, -offset_y))
+
+        hdc.StartPage()
+
+        dib = ImageWin.Dib(img)
+        dib.draw(hdc.GetHandleOutput(), (0, 0, img_width, img_height))
+
+        hdc.EndPage()
+
+    hdc.EndDoc()
+    hdc.DeleteDC()
+
+    win_orientation(impresora, orientacion)
+
+    if duplex:
+        print(f'Restaurando duplex: {duplex_ant}')
+        win_duplex(impresora, duplex_ant)
+
+
+def win_ver(docu):
+    arg = ['cmd', '/C', f'{docu}']
     info = subprocess.STARTUPINFO()
     info.dwFlags = subprocess.STARTF_USESHOWWINDOW
     info.wShowWindow = win32con.SW_HIDE
     subprocess.run(arg, startupinfo=info)
-
-    if duplex_ant:
-        print(f'Restaurando duplex: {duplex_ant}')
-        win_duplex(impresora, duplex_ant)
 
 
 def entero(numero):
@@ -156,6 +188,7 @@ def crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_al
         paginas.append(pagina)
 
     paginas[0].save(doc_destino, save_all=True, append_images=paginas[1:])
+    return paginas
 
 
 def main():
@@ -171,8 +204,7 @@ def main():
     img_pag_alto = int(args[4])
     # ver=Visualiza y para windows: defecto=Impresora defecto o nombre impresora
     impresora = args[5] if len(args) > 5 else None
-    tiempo_acrobat = int(args[6]) if len(args) > 6 else 0   # NO SE USA
-    duplex = True if len(args) > 7 else False
+    duplex = args[6] if len(args) > 6 else None
 
     facturas_img = list()
     imagenes = convert_from_path(file_factu)
@@ -195,13 +227,13 @@ def main():
         else:
             albaranes_img.append(BytesIO(data))
 
-    crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_alto)
+    paginas = crea_pdf(facturas_img, albaranes_img, doc_destino, img_pag_ancho, img_pag_alto)
 
     if impresora:
         if platform.system() == 'Darwin':       # mac
             subprocess.call(('open', doc_destino))
-        elif platform.system() == 'Windows':
-            win_imprime(doc_destino, impresora, duplex)
+        elif platform.system() == 'Windows':    # windows
+            win_ver(doc_destino) if impresora == 'ver' else win_imprime(paginas, impresora, duplex)
         else:                                   # linux
             subprocess.call(('xdg-open', doc_destino))
 
