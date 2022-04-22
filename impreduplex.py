@@ -204,7 +204,7 @@ def main():
     img_pag_alto = int(args[4])
     # ver=Visualiza y para windows: defecto=Impresora defecto o nombre impresora
     impresora = args[5] if len(args) > 5 else None
-    duplex = args[6] if len(args) > 6 else None
+    duplex = int(args[6]) if len(args) > 6 else None
 
     facturas_img = list()
     imagenes = convert_from_path(file_factu)
