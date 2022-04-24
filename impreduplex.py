@@ -196,7 +196,7 @@ def main():
     print('Cargando: ', end='')
     print(f'{os.path.basename(file_factu)}', end='', flush=True)
     facturas_img = list()
-    imagenes = convert_from_path(file_factu)
+    imagenes = convert_from_path(file_factu, dpi=DPI)
     for imagen in imagenes:
         imagefile = BytesIO()
         imagen.save(imagefile, format='PNG')
@@ -209,7 +209,7 @@ def main():
             data = f.read()
 
         if data[1:4] == b'PDF':
-            imagenes = convert_from_path(albaran)
+            imagenes = convert_from_path(albaran, dpi=DPI)
             for imagen in imagenes:
                 imagefile = BytesIO()
                 imagen.save(imagefile, format='PNG')
