@@ -8,7 +8,7 @@ import glob
 import platform
 import subprocess
 from PIL import Image, ImageWin
-from pdf2image import convert_from_path
+from pdf2image import convert_from_path, convert_from_bytes
 if platform.system() == 'Windows':
     import win32con
     import win32print
@@ -209,7 +209,7 @@ def main():
             data = f.read()
 
         if data[1:4] == b'PDF':
-            imagenes = convert_from_path(albaran, dpi=DPI)
+            imagenes = convert_from_bytes(data, dpi=DPI)
             for imagen in imagenes:
                 imagefile = BytesIO()
                 imagen.save(imagefile, format='PNG')
